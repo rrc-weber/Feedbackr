@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feedbackr at AoME</title>
+<link rel="icon" href="assets/feedbackr-app-icon.svg">
+<style>
+:root{
+  --bg:#0E0D12; --card:#1B1826; --card-2:#232030; --line:#2D2940;
+  --violet:#8B6FE8; --lav:#B9A5F5; --muted:#A79FBE; --text:#F5F3FA; --dim:#6F6884;
+  --ease:cubic-bezier(.22,.61,.36,1); --ease-io:cubic-bezier(.65,0,.35,1);
+  --t-slide:700ms; --t-el:650ms;
+  --font:Arial,"Helvetica Neue",Helvetica,sans-serif;
+  --m:86px; --r:28px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);overflow:hidden}
+body{font-family:var(--font);-webkit-font-smoothing:antialiased;color:var(--text)}
+#viewport{position:fixed;inset:0;overflow:hidden;background:var(--bg)}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center center;overflow:hidden;background:var(--bg);cursor:default}
+
+.slide{position:absolute;inset:0;opacity:0;visibility:hidden;transform:translateX(calc(var(--dir,1) * 48px));
+  transition:opacity var(--t-slide) var(--ease),transform var(--t-slide) var(--ease),visibility 0s linear var(--t-slide)}
+.slide.active{opacity:1;visibility:visible;transform:none;transition:opacity var(--t-slide) var(--ease) 120ms,transform var(--t-slide) var(--ease) 120ms,visibility 0s}
+.slide.leaving{transform:translateX(calc(var(--dir,1) * -48px))}
+.notes{display:none}
+[data-in]{opacity:0;transform:var(--from,translateY(28px));
+  transition:opacity var(--t-el) var(--ease) var(--d,0ms),transform var(--t-el) var(--ease) var(--d,0ms)}
+[data-in].on{opacity:1;transform:none}
+
+/* AoME furniture */
+.eyebrow{font-size:20px;font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:var(--lav)}
+.slide > .eyebrow{position:absolute;left:var(--m);top:40px}
+.h-title{font-size:60px;line-height:1.1;font-weight:700}
+.slide > .h-title{position:absolute;left:var(--m);top:80px}
+.card{background:var(--card);border-radius:var(--r)}
+.card.outline{box-shadow:inset 0 0 0 2px var(--lav)}
+.ic{width:64px;height:64px;border-radius:50%;background:var(--card-2);display:inline-grid;place-items:center;flex:none}
+.ic svg{width:30px;height:30px;fill:none;stroke:var(--muted);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.numc{width:64px;height:64px;border-radius:50%;background:var(--violet);color:#fff;display:inline-grid;place-items:center;font-size:28px;font-weight:700;flex:none}
+.fn{position:absolute;left:var(--m);right:220px;bottom:30px;font-size:17px;line-height:1.35;color:var(--dim)}
+#pageno{position:absolute;right:var(--m);bottom:30px;font-size:17px;color:var(--dim);font-variant-numeric:tabular-nums;z-index:6}
+.callout{position:absolute;left:var(--m);right:var(--m);display:flex;align-items:center;gap:30px;padding:28px 36px}
+.callout .big{font-size:30px;font-weight:700;color:var(--lav)}
+.callout .txt{font-size:24px;line-height:1.4;color:var(--text);margin-top:4px}
+.row{display:flex;align-items:center;gap:30px;padding:24px 34px}
+.row .t{font-size:30px;font-weight:700}
+
+/* phone */
+#phone{position:absolute;left:0;top:0;width:408px;height:824px;z-index:5;pointer-events:none;
+  transform:translate(2100px,128px) rotate(8deg) scale(.9);opacity:0;transition:transform 1100ms var(--ease-io),opacity 700ms var(--ease)}
+#phone video{width:100%;height:100%;display:block;border-radius:64px}
+#playBtn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;pointer-events:auto;cursor:pointer;border:0;border-radius:999px;background:var(--violet);color:#fff;font:700 24px var(--font);padding:18px 30px}
+#phone.blocked #playBtn{display:block}
+#phone .chip{position:absolute;left:50%;top:calc(100% + 18px);transform:translateX(-50%);white-space:nowrap;font-size:18px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--lav);opacity:0;transition:opacity 400ms var(--ease)}
+#stage[data-phone="hero"] #phone{transform:translate(1380px,120px) rotate(-4deg);opacity:1}
+#stage[data-phone="demo"] #phone{transform:translate(1380px,110px) scale(1.02);opacity:1}
+#stage[data-phone="demo"] #phone .chip{opacity:1}
+#stage[data-phone="exit"] #phone{transform:translate(1380px,1200px) scale(.8);opacity:0}
+
+/* 1 cover */
+.s-title .tile{position:absolute;left:132px;top:190px;width:300px;height:300px;border-radius:36px;background:var(--card)}
+.bigmark{position:absolute;left:162px;top:220px;width:240px;height:240px}
+.bigmark rect{transform-box:fill-box;transform-origin:center;opacity:0;transition:transform 1100ms var(--ease-io),opacity 700ms var(--ease)}
+.bigmark .m-t{transform:translateY(-60px)} .bigmark .m-r{transform:translateX(60px)}
+.bigmark .m-b{transform:translateY(60px)} .bigmark .m-l{transform:translateX(-60px)}
+.slide.active .bigmark.on rect{opacity:1;transform:none}
+.bigmark .m-r{transition-delay:120ms}.bigmark .m-b{transition-delay:240ms}.bigmark .m-l{transition-delay:360ms}
+.s-title .brand{position:absolute;left:480px;top:262px;font-size:100px;font-weight:700;line-height:1}
+.s-title .sub{position:absolute;left:484px;top:386px;font-size:42px;color:var(--muted)}
+.s-title .rule{position:absolute;left:132px;top:560px;width:620px;height:2px;background:var(--card-2)}
+.s-title .presenter{position:absolute;left:132px;top:590px;font-size:26px}
+.s-title b{font-weight:700;color:var(--text);margin-right:14px}
+.s-title .presenter span,.s-title .names span{color:var(--muted)}
+.s-title .names{position:absolute;left:132px;top:700px;font-size:23px;line-height:2.05}
+.s-title .event{position:absolute;left:132px;top:950px;font-size:24px;color:var(--muted)}
+.s-title .event i{font-style:normal;color:var(--lav);margin:0 12px}
+
+/* 2 ideal */
+.s-ideal .sub-eb{position:absolute;left:var(--m);top:270px}
+.ideal{position:absolute;left:var(--m);right:var(--m);top:330px;display:grid;grid-template-columns:repeat(5,1fr);gap:22px}
+.ideal > div{padding:40px 34px;min-height:440px}
+.ideal h3{font-size:30px;font-weight:700;margin:34px 0 22px}
+.ideal p{font-size:24px;line-height:1.42;color:var(--muted)}
+
+/* 3 scenario */
+.tl{position:absolute;left:var(--m);right:var(--m);top:250px}
+.tl .axis{position:absolute;left:10%;right:10%;top:9px;height:2px;background:var(--card-2)}
+.tl .axis i{position:absolute;left:0;top:0;height:2px;background:var(--violet);width:0;transition:width 900ms var(--ease-io)}
+.tl .cols{display:grid;grid-template-columns:repeat(5,1fr);gap:22px}
+.tl .pt{text-align:center}
+.tl .dot{width:20px;height:20px;border-radius:50%;background:var(--lav);margin:0 auto;position:relative;z-index:1;box-shadow:0 0 0 8px var(--bg)}
+.tl .when{font-size:24px;font-weight:700;color:var(--lav);margin:22px 0 26px}
+.tl .card{text-align:left;padding:30px 30px;min-height:330px}
+.tl h3{font-size:30px;font-weight:700;margin-bottom:22px}
+.tl p{font-size:24px;line-height:1.42;color:var(--muted)}
+.s-scen .callout{top:850px}
+.s-scen .callout .big{font-size:32px}
+
+/* 4 barriers */
+.bars4{position:absolute;left:var(--m);top:250px;width:860px}
+.bars4 .row{margin-bottom:18px}
+.reddit{position:absolute;right:120px;top:270px;width:780px;border-radius:22px;box-shadow:0 30px 70px rgba(0,0,0,.55),0 0 0 1px var(--line);--from:translateX(80px) rotate(6deg)}
+.reddit.on{transform:rotate(2deg)}
+.s-bar .callout{top:830px}
+
+/* 5 solution */
+.s-sol .lockup{position:absolute;left:var(--m);top:110px;display:flex;align-items:center;gap:36px}
+.s-sol .lockup .mk{width:150px;height:150px;border-radius:30px;background:var(--card);display:grid;place-items:center}
+.s-sol .lockup .mk img{width:118px}
+.s-sol .lockup .w{font-size:96px;font-weight:700;line-height:1}
+.s-sol .lockup .sub{font-size:38px;color:var(--muted);margin-top:14px}
+.shot{position:absolute;left:var(--m);top:340px;width:880px;border-radius:var(--r);overflow:hidden;background:var(--card);padding:18px}
+.shot img{width:100%;display:block;border-radius:14px}
+.shot2{position:absolute;left:1000px;top:400px;width:300px;border-radius:var(--r);overflow:hidden;background:var(--card);padding:14px}
+.shot2 img{width:100%;display:block;border-radius:18px}
+
+/* 6 steps */
+.steps3{position:absolute;left:var(--m);top:240px;width:1210px}
+.steps3 .card{display:flex;gap:30px;padding:30px 36px;margin-bottom:22px;transition:box-shadow 500ms var(--ease),opacity 500ms var(--ease)}
+.steps3 .card .numc{background:var(--card-2);color:var(--muted);transition:background 500ms var(--ease),color 500ms var(--ease)}
+.steps3 .card.now{box-shadow:inset 0 0 0 2px var(--lav)}
+.steps3 .card.now .numc{background:var(--violet);color:#fff}
+.steps3 h3{font-size:32px;font-weight:700;margin:4px 0 12px}
+.steps3 p{font-size:24px;line-height:1.4;color:var(--muted)}
+.steps3 .tip{font-size:21px;font-style:italic;color:var(--lav);margin-top:12px}
+.s-steps .fn{font-style:italic;color:var(--muted)}
+
+/* 7 responsible */
+.grid6{position:absolute;left:var(--m);right:var(--m);top:260px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.grid6 > div{padding:36px 38px 40px;min-height:300px}
+.grid6 .hd{display:flex;align-items:center;gap:22px;margin-bottom:34px}
+.grid6 .k{font-size:30px;font-weight:700}
+.grid6 .v{font-size:24px;line-height:1.42;color:var(--muted)}
+
+/* 8 evaluation */
+.rq{position:absolute;left:var(--m);top:250px;width:1080px;padding:48px 52px}
+.rq .eyebrow{letter-spacing:.2em;margin-bottom:22px}
+.rq .q{font-size:34px;line-height:1.38;margin-bottom:44px}
+.rq ul{list-style:none}
+.rq li{font-size:25px;line-height:1.35;color:var(--text);padding-left:34px;position:relative;margin-bottom:14px}
+.rq li::before{content:"";position:absolute;left:0;top:12px;width:12px;height:12px;border-radius:50%;background:var(--lav)}
+.fund{position:absolute;right:var(--m);top:250px;width:620px;padding:48px 48px;--from:translateX(60px)}
+.fund .eyebrow{letter-spacing:.2em;margin-bottom:24px}
+.fund .logos{display:flex;gap:26px;align-items:center;background:#fff;border-radius:16px;padding:20px 26px;width:max-content}
+.fund .logos img{height:66px}
+.fund p{font-size:25px;line-height:1.4;color:var(--muted);margin-top:28px}
+.fund p b{color:var(--text)}
+
+/* 9 protocol */
+.proto{position:absolute;left:var(--m);right:var(--m);top:250px;height:520px}
+.proto .axis{position:absolute;left:9%;right:9%;top:258px;height:2px;background:var(--card-2)}
+.proto .axis i{position:absolute;left:0;top:0;height:2px;background:var(--violet);width:0;transition:width 1600ms var(--ease-io) 200ms}
+.proto.on .axis i{width:100%}
+.ms{position:absolute;width:290px;margin-left:-145px;text-align:center}
+.ms .dot{position:absolute;left:50%;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:var(--violet);box-shadow:0 0 0 8px var(--bg)}
+.ms h3{font-size:26px;font-weight:700;color:var(--lav);margin-bottom:12px}
+.ms p{font-size:22px;line-height:1.38;color:var(--text)}
+.ms.up{bottom:calc(520px - 236px)}.ms.up .dot{bottom:-35px}
+.ms.dn{top:296px}.ms.dn .dot{top:-49px;background:var(--lav)}
+.s-proto .callout{top:820px}
+.s-proto .callout .txt{font-size:26px;margin:0}
+
+/* 10 early implementation */
+.rows4{position:absolute;left:var(--m);right:var(--m);top:240px}
+.rows4 .row{display:grid;grid-template-columns:64px 440px 1fr;align-items:center;gap:30px;margin-bottom:18px;padding:28px 34px}
+.rows4 .row .t{font-size:28px}
+.rows4 .row .d{font-size:23px;line-height:1.38;color:var(--muted)}
+.econ{position:absolute;left:var(--m);right:var(--m);top:790px;display:grid;grid-template-columns:560px 1fr 1fr;align-items:center;gap:30px;padding:30px 40px}
+.econ .h{font-size:30px;font-weight:700}
+.econ .s{font-size:19px;line-height:1.35;color:var(--muted);margin-top:6px}
+.econ .n{font-size:58px;font-weight:700;color:var(--lav);line-height:1;font-variant-numeric:tabular-nums}
+.econ .l{font-size:20px;color:var(--muted);margin-top:8px}
+.s-early .usage{position:absolute;left:var(--m);top:975px;font-size:24px;font-style:italic;color:var(--lav)}
+
+/* 11 summary / 12 questions */
+.sum{position:absolute;left:var(--m);top:250px;width:1180px}
+.sum .row{padding:40px 40px;margin-bottom:26px}
+.sum .row .t{font-size:34px}
+.qrcard{position:absolute;right:var(--m);top:250px;width:470px;padding:48px 48px 44px;text-align:center;--from:scale(.94)}
+.qrcard .tile{background:#fff;border-radius:18px;padding:26px}
+.qrcard .tile img{width:100%;display:block;image-rendering:pixelated}
+.qrcard .url{font-size:34px;font-weight:700;color:var(--lav);margin-top:30px}
+.qrcard .cap{font-size:23px;color:var(--text);margin-top:26px;line-height:1.5}
+.contacts{position:absolute;left:var(--m);bottom:30px;font-size:21px;color:var(--muted)}
+.qcard{position:absolute;left:var(--m);top:470px;width:1180px;height:220px;display:grid;place-items:center;font-size:72px;font-weight:700}
+
+/* 13 refs */
+.refs{position:absolute;left:var(--m);right:var(--m);top:200px;list-style:none;counter-reset:r}
+.refs li{counter-increment:r;position:relative;padding-left:46px;font-size:20px;line-height:1.42;color:var(--muted);margin-bottom:13px}
+.refs li::before{content:counter(r) ".";position:absolute;left:0;color:var(--lav);font-weight:700}
+
+/* overlay, help, presenter */
+#notesOverlay{position:fixed;left:0;right:0;bottom:0;max-height:38vh;overflow:auto;background:rgba(14,13,18,.97);color:var(--text);font:18px/1.5 var(--font);padding:20px 28px;border-top:3px solid var(--violet);display:none;z-index:20;white-space:pre-wrap}
+#notesOverlay.show{display:block}
+#help{position:fixed;right:16px;top:12px;font:13px/1.4 var(--font);color:var(--dim);opacity:0;transition:opacity 600ms;z-index:21;pointer-events:none}
+#help.show{opacity:1}
+.static *,.static *::before,.static *::after{transition:none !important;animation:none !important}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition-duration:1ms !important;transition-delay:0ms !important}}
+body.presenter{overflow:auto;background:var(--bg)}
+body.presenter #viewport{display:none}
+#presenter{display:none;padding:28px 36px;color:var(--text);font-family:var(--font)}
+body.presenter #presenter{display:block}
+#presenter .top{display:flex;gap:28px;align-items:baseline;border-bottom:2px solid var(--violet);padding-bottom:14px;margin-bottom:18px}
+#presenter .top b{font-size:28px;color:#fff}
+#presenter .clock{font-size:42px;font-weight:700;color:var(--lav);margin-left:auto;font-variant-numeric:tabular-nums}
+#presenter .meta{font-size:18px;color:var(--muted)}
+#presenter .pn{font-size:24px;line-height:1.55;max-width:1100px;white-space:pre-wrap}
+#presenter .pn .cue{color:var(--lav);font-weight:700}
+#presenter .pn .src{display:block;margin-top:18px;font-size:16px;color:var(--dim)}
+#presenter .nextup{margin-top:26px;font-size:20px;color:var(--muted)}
+#presenter button{background:var(--card-2);color:#fff;border:0;border-radius:10px;font-size:20px;padding:12px 22px;margin-right:10px;cursor:pointer}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.38 3.62a1 1 0 0 1 3 3L7.37 18.64a2 2 0 0 1-.86.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.85z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8M16 17H8M10 9H8"/></symbol>
+  <symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M2 2l20 20"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M14.1 6.3a2 2 0 0 0 1.8 0l3.7-1.9A1 1 0 0 1 21 5.3v12.8a1 1 0 0 1-.6.9l-4.5 2.2a2 2 0 0 1-1.8 0l-4.2-2.1a2 2 0 0 0-1.8 0l-3.7 1.9A1 1 0 0 1 3 20.1V7.2a1 1 0 0 1 .6-.9l4.5-2.2a2 2 0 0 1 1.8 0z"/><path d="M15 5.8v15M9 3.2v15"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></symbol>
+</svg>
+
+<div id="viewport">
+<div id="stage" data-phone="off">
+
+<!-- 1 · Cover -->
+<section class="slide s-title" data-title="Title">
+  <div class="tile" data-in="0" style="--from:none"></div>
+  <svg class="bigmark" data-in="0" style="--from:none" viewBox="74 74 364 364" aria-hidden="true">
+    <rect class="m-t" x="150" y="74" width="212" height="84" rx="42" fill="#B9A5F5"/>
+    <rect class="m-r" x="354" y="150" width="84" height="212" rx="42" fill="#F5F3FA"/>
+    <rect class="m-b" x="150" y="354" width="212" height="84" rx="42" fill="#F5F3FA"/>
+    <rect class="m-l" x="74" y="150" width="84" height="212" rx="42" fill="#F5F3FA"/>
+  </svg>
+  <h1 class="brand" data-in="0" style="--d:200ms">Feedbackr</h1>
+  <div class="sub" data-in="0" style="--d:320ms">AI assisted workplace-based assessment drafts</div>
+  <div class="rule" data-in="0" style="--d:420ms;--from:scaleX(0)"></div>
+  <div class="presenter" data-in="0" style="--d:500ms"><b>Dr Robert Crichton</b><span>University Hospitals Birmingham</span></div>
+  <div class="names" data-in="0" style="--d:620ms">
+    <div><b>Dr Adam Julius</b><span>University College London</span></div>
+    <div><b>Dr Emilie Martinoni Hoogenboom</b><span>University College London</span></div>
+    <div><b>Dr Richard Snooks</b><span>Imperial College London</span></div>
+  </div>
+  <div class="event" data-in="0" style="--d:740ms">Oral<i>·</i>Academy of Medical Educators<i>·</i>October 2026</div>
+  <aside class="notes">Introduction
+Feedbackr: AI assisted workplace-based assessment drafts.
+I would like to pause on this title slide and ask you all to reflect. As some of the best, most motivated educators in the country, can you all say that every WBPA you have signed off has had a meaningful educational discussion with facilitation of reflection?
+The tool that we have developed aims to put these educational face-to-face interactions at the centre of WBAs.</aside>
+</section>
+
+<!-- 2 · What a WBPA is -->
+<section class="slide s-ideal" data-title="20 years of WBAs">
+  <div class="eyebrow" data-in="0">What a WBPA is</div>
+  <h2 class="h-title" data-in="0" style="--d:100ms">20 years of Workplace Based Assessments</h2>
+  <div class="eyebrow sub-eb" data-in="0" style="--d:200ms">The ideal</div>
+  <div class="ideal">
+    <div class="card" data-in="0" style="--d:300ms"><span class="numc">1</span><h3>Real experience</h3><p>A case, event or aspect of practice, chosen in advance</p></div>
+    <div class="card" data-in="0" style="--d:420ms"><span class="numc">2</span><h3>Discussion</h3><p>Protected time, face to face, soon after the event</p></div>
+    <div class="card" data-in="0" style="--d:540ms"><span class="numc">3</span><h3>Reflection</h3><p>The educator facilitates the resident's reflective practice</p></div>
+    <div class="card" data-in="0" style="--d:660ms"><span class="numc">4</span><h3>Feedback</h3><p>Specific and actionable: SBI format</p></div>
+    <div class="card" data-in="0" style="--d:780ms"><span class="numc">5</span><h3>Document</h3><p>Recorded at the time, mapped to the curriculum, signed by the educator</p></div>
+  </div>
+  <p class="fn">1 PMETB 2007 &nbsp; 2 Miller 1990 &nbsp; 3 Norcini &amp; Burch 2007 &nbsp;&nbsp; Full references: final slide</p>
+  <aside class="notes">WBPAs have been part of UK postgraduate training since the late 1990s, with wider uptake after the 2007 PMETB guide to good practice [1].
+They do two jobs at once: they guide development through feedback and reflection, and they evidence the standard of work achieved. Done properly, they reach the top of Miller's pyramid and Bloom's taxonomy: shows how, does, creates [2,3].
+The ideal is a sequence. A real case the resident managed; a protected conversation soon afterwards; the educator drawing out the resident's reasoning; specific feedback on what to do next; and a record written at the time, mapped to the curriculum and signed off.
+Hold that picture in mind for the next slide.</aside>
+</section>
+
+<!-- 3 · Scenario -->
+<section class="slide s-scen" data-title="A resident asks for a CBD">
+  <div class="eyebrow" data-in="0">A scenario</div>
+  <h2 class="h-title" data-in="0" style="--d:100ms">A resident asks for a CBD</h2>
+  <div class="tl">
+    <div class="axis"><i class="tlbar"></i></div>
+    <div class="cols">
+      <div class="pt" data-in="0" style="--d:250ms"><div class="dot"></div><div class="when">09:10 Monday</div><div class="card"><h3>The case</h3><p>“Can we do a CBD on that?” “Yes, definitely, later.”</p></div></div>
+      <div class="pt" data-in="1"><div class="dot"></div><div class="when">10:00 to 17:30</div><div class="card"><h3>The list</h3><p>Back-to-back cases. No gap to talk; the consultant goes straight to on-call.</p></div></div>
+      <div class="pt" data-in="2"><div class="dot"></div><div class="when">Next 10 days</div><div class="card"><h3>The rota</h3><p>Resident on nights, consultant on leave.</p></div></div>
+      <div class="pt" data-in="3"><div class="dot"></div><div class="when">Day 11</div><div class="card"><h3>The write-up</h3><p>Resident writes it up from memory and sends the assessment request.</p></div></div>
+      <div class="pt" data-in="4"><div class="dot"></div><div class="when">Day 19</div><div class="card"><h3>The sign-off</h3><p>Consultant reads a short summary between cases, “Good case, well managed.” Signed.</p></div></div>
+    </div>
+  </div>
+  <div class="card callout" data-in="5"><div class="big">Evidence was recorded but the educational conversation was lost.</div></div>
+  <p class="fn">Pattern described in: 4 Prentice 2020 &nbsp; 5 GMC 2011 &nbsp; 6 Cho 2014 &nbsp;&nbsp; Full references: final slide</p>
+  <aside class="notes">Let me walk you through how this usually goes. This is illustrative, but I suspect everyone here will recognise it.
+09:10 on a Monday: a CT2 resident manages an unanticipated difficult airway well. “Can we do a CBD on that?” “Yes, definitely, later.”
+<span class="cue">CLICK</span> The list runs back to back. There is no gap, and at the end the consultant goes straight to on-call.
+<span class="cue">CLICK</span> Then the rota: the resident is on nights, the consultant is on leave. The moment passes.
+<span class="cue">CLICK</span> On day 11 the resident writes it up from memory and sends the assessment request.
+<span class="cue">CLICK</span> On day 19 the consultant reads a short summary between cases, writes “Good case, well managed”, and signs.
+<span class="cue">CLICK</span> The assessment is complete and the portfolio is satisfied. But nothing records what the resident thought, what they would change, or what to do next. The evidence was recorded; the learning conversation was lost. This pattern of retrospective completion and thin, non-specific feedback is well described [4-6].</aside>
+</section>
+
+<!-- 4 · Barriers -->
+<section class="slide s-bar" data-title="Why reality does not match the ideal">
+  <div class="eyebrow" data-in="0">The barriers</div>
+  <h2 class="h-title" data-in="0" style="--d:100ms">Why reality does not match the ideal</h2>
+  <div class="bars4">
+    <div class="card row" data-in="0" style="--d:250ms"><span class="ic"><svg><use href="#i-mic"/></svg></span><span class="t">1&nbsp; Having the discussion</span></div>
+    <div class="card row" data-in="0" style="--d:370ms"><span class="ic"><svg><use href="#i-chat"/></svg></span><span class="t">2&nbsp; Genuine reflection and feedback</span></div>
+    <div class="card row" data-in="0" style="--d:490ms"><span class="ic"><svg><use href="#i-pen"/></svg></span><span class="t">3&nbsp; Recording the outcome</span></div>
+    <div class="card row" data-in="0" style="--d:610ms"><span class="ic"><svg><use href="#i-file"/></svg></span><span class="t">4&nbsp; Delayed written feedback</span></div>
+  </div>
+  <img class="reddit" data-in="1" src="assets/reddit-accused.jpg" alt="Reddit post: accused of using AI for portfolio">
+  <div class="card callout" data-in="1" style="--d:300ms">
+    <span class="ic"><svg><use href="#i-eyeoff"/></svg></span>
+    <div><div class="big">Now compounded by unguided AI use.</div>
+    <div class="txt">Unmeasured in specialty training. College statements warn it risks educational value, probity and equity [7-10].</div></div>
+  </div>
+  <p class="fn">4 Prentice 2020 &nbsp; 5 GMC 2011 &nbsp; 6 Cho 2014 &nbsp; 7-10 College AI guidance &nbsp;&nbsp; Full references: final slide. Reddit r/doctorsUK: an individual, unverified account.</p>
+  <aside class="notes">Four barriers sit between the intent and the reality of a WBA, and they compound: if the discussion does not happen, there is nothing to reflect on; if reflection is thin, the record is thin; and if the record is written later from memory, the written feedback that follows is late, generic and often never read.
+<span class="cue">CLICK</span> And it is now compounded by unguided AI use. This post is one resident's account of being accused by their ES of using AI for portfolio reflections. It is unmeasured in specialty training, and the Colleges warn it risks educational value, probity and equity.
+If asked for data: of 906 UK surgical trainees, about 90% were aware of inaccurate or misrepresentative WBA entries; 55.4% felt ARCP rewards quantity over quality (Beamish 2020).
+<span class="src">The Reddit post is reused from the ATRG deck: an individual, unverified account.</span></aside>
+</section>
+
+<!-- 5 · Proposed solution -->
+<section class="slide s-sol" data-title="Proposed solution" data-phone="hero">
+  <div class="eyebrow" data-in="0">Proposed solution</div>
+  <div class="lockup" data-in="0" style="--d:150ms"><span class="mk"><img src="assets/feedbackr-app-icon.svg" alt=""></span><div><div class="w">Feedbackr</div><div class="sub">AI assisted workplace-based assessment drafts</div></div></div>
+  <div class="shot" data-in="0" style="--d:350ms"><img src="assets/app-desktop.png" alt="Feedbackr: choose your specialty"></div>
+  <aside class="notes">We are neither educationalists nor developers; we have been through training and understand the issues intimately.
+We have built Feedbackr because we believe that the educational discussion is either not occurring or could be enhanced by participants refocusing upon it.
+3:15-4:15. Walk the audience through the quick-start flow. Emphasise friction removed: no account, no install, works on a phone in the theatre coffee room. The demo video starts playing now and continues on the next slide.</aside>
+</section>
+
+<!-- 6 · How it works -->
+<section class="slide s-steps" data-title="Feedbackr in three steps" data-phone="demo">
+  <div class="eyebrow" data-in="0">Proposed solution</div>
+  <h2 class="h-title" data-in="0" style="--d:100ms">Feedbackr</h2>
+  <div class="steps3">
+    <div class="card" data-t="0" data-in="0" style="--d:250ms"><span class="numc">1</span><div><h3>Have the discussion</h3><p>Choose specialty and assessment, ensure consent, tap the mic, talk. Prompts appear to guide the learning conversation.</p><div class="tip">Pause, discard or finish at any point</div></div></div>
+    <div class="card" data-t="16.5" data-in="0" style="--d:370ms"><span class="numc">2</span><div><h3>Review the draft</h3><p>Edit the draft, explore curriculum suggestions and further reading, then prepare for export.</p><div class="tip">Edit or copy individual fields or everything</div></div></div>
+    <div class="card" data-t="57.5" data-in="0" style="--d:490ms"><span class="numc">3</span><div><h3>Save it to your device</h3><p>Copy into the e-portfolio, download or share a PDF or email the text summary.</p><div class="tip">Save before you leave: nothing is retained by the app</div></div></div>
+  </div>
+  <p class="fn" data-in="0" style="--d:600ms">Record with everyone's agreement. Leave out patient identifiers.</p>
+  <aside class="notes">Walk through the three steps; the highlighted card follows the demo video.
+Have the discussion: choose specialty and assessment, ensure consent, tap the mic and talk. Prompts appear to guide the learning conversation, and you can pause, discard or finish at any point.
+Review the draft: edit it, explore the curriculum suggestions and further reading, then prepare for export.
+Save it to your device: copy into the e-portfolio, download or share a PDF, or email the text summary. Save before you leave, because nothing is retained by the app.
+The consent line at the bottom mirrors the in-app messaging.
+<span class="src">DEMONSTRATION Festival 90-second replay of a real A-CEX in the live interface with prepared responses. It shows the workflow, not live generation speed or accuracy.</span></aside>
+</section>
+
+<!-- 7 · Responsible by design -->
+<section class="slide s-resp" data-title="Responsible by design" data-phone="exit">
+  <div class="eyebrow" data-in="0">Responsible by design</div>
+  <h2 class="h-title" data-in="0" style="--d:100ms">Modelling responsible AI in medical education</h2>
+  <div class="grid6">
+    <div class="card" data-in="0" style="--d:250ms"><div class="hd"><span class="ic"><svg><use href="#i-users"/></svg></span><span class="k">Consent-gated</span></div><div class="v">Educator and resident each confirm their own participation before recording starts</div></div>
+    <div class="card" data-in="0" style="--d:330ms"><div class="hd"><span class="ic"><svg><use href="#i-shield"/></svg></span><span class="k">No patients recorded</span></div><div class="v">Staff educational conversations only; patients are never participants and identifiers are excluded</div></div>
+    <div class="card" data-in="0" style="--d:410ms"><div class="hd"><span class="ic"><svg><use href="#i-check"/></svg></span><span class="k">Supports existing controls</span></div><div class="v">The resident owns the narrative, the educator approves it through the existing portfolio process</div></div>
+    <div class="card" data-in="0" style="--d:490ms"><div class="hd"><span class="ic"><svg><use href="#i-lock"/></svg></span><span class="k">EU data residency</span></div><div class="v">LLM inference migrated to Azure OpenAI (UK South)</div></div>
+    <div class="card" data-in="0" style="--d:570ms"><div class="hd"><span class="ic"><svg><use href="#i-eyeoff"/></svg></span><span class="k">Zero retention</span></div><div class="v">Audio deleted after transcription; neither conversation nor draft retained by the service; the draft exists only in the user's browser</div></div>
+    <div class="card" data-in="0" style="--d:650ms"><div class="hd"><span class="ic"><svg><use href="#i-chart"/></svg></span><span class="k">Aggregate analytics only</span></div><div class="v">Non-linkable usage events with no user identifier, aligned with the NHS England ambient voice technology framework</div></div>
+  </div>
+  <aside class="notes">Our small group includes experience from the Topol, Clinical AI and NHS Entrepreneur fellowships. We have looked to purposefully design this tool with current and future regulation in mind.
+4:15-5:30. This slide usually draws the questions. Zero retention is the headline: there is no server-side store of conversations or drafts to breach. Analytics cannot identify users or link sessions. A DPIA and a voluntary clinical-safety hazard log sit behind the study deployment. Contrast with shadow AI use pasted into consumer chatbots.</aside>
+</section>
+
+<!-- 8 · National evaluation -->
+<section class="slide s-eval" data-title="National evaluation">
+  <div class="eyebrow" data-in="0">The evidence</div>
+  <h2 class="h-title" data-in="0" style="--d:100ms">National Evaluation</h2>
+  <div class="card rq" data-in="0" style="--d:250ms">
+    <div class="eyebrow">Research question</div>
+    <p class="q">Can Feedbackr be delivered and evaluated feasibly in UK anaesthetic WBAs, and what signals emerge in accessibility, acceptability, implementation and feedback quality?</p>
+    <div class="eyebrow">Aims</div>
+    <ul>
+      <li>Describe experience of WBPA process with and without Feedbackr</li>
+      <li>Describe usability (SUS) with and without Feedbackr</li>
+      <li>Explore implementation experience at focus sites</li>
+      <li>Explore blinded QuAL ratings of WBAs with and without Feedbackr</li>
+      <li>Describe assessment volumes, recording duration and failure counts</li>
+      <li>Provide economic modelling of Feedbackr implementation</li>
+    </ul>
+  </div>
+  <div class="card fund" data-in="0" style="--d:450ms">
+    <div class="eyebrow">Funded by</div>
+    <div class="logos"><img src="assets/niaa.png" alt="NIAA"><img src="assets/seauk.png" alt="SEA UK"></div>
+    <p><b>Peer-reviewed NIAA / SEA UK award.</b></p>
+    <p>Focus sites: <b>UCLH</b> and <b>GSTT</b>.</p>
+  </div>
+  <aside class="notes">6:30-7:30. Peer-reviewed NIAA/SEA UK funding. Constructs are properties of the feedback, not the software: specificity, actionability, contemporaneity, ease. Conflict of interest is declared and managed: the CI is the developer, hence pre-registration, blinded rating and second-coder review.</aside>
+</section>
+
+<!-- 9 · Protocol -->
+<section class="slide s-proto" data-title="The protocol">
+  <div class="eyebrow" data-in="0">Timeline</div>
+  <h2 class="h-title" data-in="0" style="--d:100ms">The Protocol</h2>
+  <div class="proto" data-in="0" style="--from:none">
+    <div class="axis"><i></i></div>
+    <div class="ms up" data-in="0" style="left:9%;--d:300ms"><h3>Site opening</h3><p>Approvals complete; Survey 1 opens (weeks 0-6); site cohorts enrolled</p><span class="dot"></span></div>
+    <div class="ms dn" data-in="0" style="left:25.4%;--d:500ms"><span class="dot"></span><h3>+6 weeks</h3><p>Survey 1 closes, then national promotion begins</p></div>
+    <div class="ms up" data-in="0" style="left:41.8%;--d:700ms"><h3>Week 8</h3><p>Early resident focus groups; SS2 narrative collection begins</p><span class="dot"></span></div>
+    <div class="ms dn" data-in="0" style="left:58.2%;--d:900ms"><span class="dot"></span><h3>Months 2-5</h3><p>SS2 collection and blinded QuAL rating</p></div>
+    <div class="ms up" data-in="0" style="left:74.6%;--d:1100ms"><h3>Months 5-6</h3><p>Later resident and educator groups; Survey 2 opens month 6</p><span class="dot"></span></div>
+    <div class="ms dn" data-in="0" style="left:91%;--d:1300ms"><span class="dot"></span><h3>Close</h3><p>Analysis, outputs and sustainability decision</p></div>
+  </div>
+  <div class="card callout" data-in="0" style="--d:1500ms"><p class="txt">Awaiting ethics approval. Survey 1 opens once approvals are confirmed and closes before national promotion, capturing an uncontaminated baseline of feedback experience and shadow AI use.</p></div>
+  <aside class="notes">8:45-9:15. One breath per milestone. Be upfront: the study is awaiting ethics approval, so the funded-year sequence may shift right; Survey 1 opens as soon as approvals land. Invite the audience to watch for the survey through RAFT, SEA UK, RCoA and deanery channels.</aside>
+</section>
+
+<!-- 10 · Early implementation -->
+<section class="slide s-early" data-title="Early implementation">
+  <div class="eyebrow" data-in="0">Work in progress</div>
+  <h2 class="h-title" data-in="0" style="--d:100ms">Early implementation: what we are seeing</h2>
+  <div class="rows4">
+    <div class="card row" data-in="0" style="--d:250ms"><span class="ic"><svg><use href="#i-chat"/></svg></span><span class="t">An expectation of dialogue</span><span class="d">The structured recording process itself creates the expectation of a real educational conversation</span></div>
+    <div class="card row" data-in="0" style="--d:370ms"><span class="ic"><svg><use href="#i-trend"/></svg></span><span class="t">Perceived value</span><span class="d">Feedback indicates WBA encounters feel more worthwhile to both residents and supervisors</span></div>
+    <div class="card row" data-in="0" style="--d:490ms"><span class="ic"><svg><use href="#i-map"/></svg></span><span class="t">Curriculum awareness</span><span class="d">Trainees report greater familiarity with curriculum capabilities through the suggested mappings</span></div>
+    <div class="card row" data-in="0" style="--d:610ms"><span class="ic"><svg><use href="#i-phone"/></svg></span><span class="t">Ambient scribe literacy</span><span class="d">Users build hands-on familiarity with a technology arriving rapidly in the NHS</span></div>
+  </div>
+  <div class="card outline econ" data-in="1">
+    <div><div class="h">Early economic model</div><div class="s">Pre-data decision tree, per completed WBA; central estimate (pessimistic–optimistic range)</div></div>
+    <div><div class="n">~<span data-count="24">24</span> min</div><div class="l">staff time saved (2–40 min)</div></div>
+    <div><div class="n">£<span data-count="34">34</span></div><div class="l">cost saved (£2–£57)</div></div>
+  </div>
+  <p class="usage" data-in="1" style="--d:300ms">By October 2026: over 500 completed assessments and 21 hours of educational conversation facilitated.</p>
+  <aside class="notes">5:30-6:30. Be honest about evidence level: these are preliminary, self-reported implementation findings, not trial results. That honesty sets up the next slide: we now have funding to test this properly at national scale.
+<span class="cue">CLICK</span> Economic panel: early, pre-data decision-tree cost-consequence model (Snooks, Julius, Crichton). Central case saves about 24 minutes of staff time per completed WBA (16 resident, 8 educator), about £34 at PSSRU-style unit costs; pessimistic to optimistic scenarios give 2 to 40 minutes and £2 to £57. Nationally in anaesthesia (~240,000 WBAs/year) that is roughly £8.3m a year, range £0.45m to £13.7m. Caveats if asked: capacity released, not cash; the four time parameters drive the result and the national surveys will measure them; the model will be pre-registered and recalibrated.</aside>
+</section>
+
+<!-- 11 · Summary -->
+<section class="slide s-sum" data-title="Summary">
+  <h2 class="h-title" data-in="0" style="position:absolute;left:var(--m);top:80px">Summary</h2>
+  <div class="sum">
+    <div class="card row" data-in="0" style="--d:200ms"><span class="ic"><svg><use href="#i-chat"/></svg></span><span class="t">The conversation is essential to WBAs</span></div>
+    <div class="card row" data-in="0" style="--d:340ms"><span class="ic"><svg><use href="#i-shield"/></svg></span><span class="t">A worked example of responsible AI in medical education</span></div>
+    <div class="card row" data-in="0" style="--d:480ms"><span class="ic"><svg><use href="#i-chart"/></svg></span><span class="t">Early evidence generation is ongoing</span></div>
+  </div>
+  <div class="card qrcard" data-in="0" style="--d:600ms">
+    <div class="tile"><img src="assets/qr-outcome6.png" alt="QR code for outcome6.app"></div>
+    <div class="url">outcome6.app</div>
+    <div class="cap">Try it today.<br>Survey 1 coming soon in Anaesthesia</div>
+  </div>
+  <p class="contacts" data-in="0" style="--d:700ms">robert.crichton@nhs.net &nbsp;·&nbsp; adam.julius@nhs.net &nbsp;·&nbsp; outcome6.app</p>
+  <aside class="notes">9:15-10:00. Close on the invitation: scan, try it on your next case-based discussion, and if you train or supervise in UK anaesthesia, complete Survey 1. Then open for questions.</aside>
+</section>
+
+<!-- 12 · Questions -->
+<section class="slide s-q" data-title="Questions">
+  <div class="card qcard" data-in="0">Questions</div>
+  <div class="card qrcard" data-in="0" style="--d:250ms;top:330px">
+    <div class="tile"><img src="assets/qr-outcome6.png" alt="QR code for outcome6.app"></div>
+    <div class="url">outcome6.app</div>
+    <div class="cap">Try it today.<br>Survey 1 coming soon in Anaesthesia</div>
+  </div>
+  <p class="contacts" data-in="0" style="--d:400ms">robert.crichton@nhs.net &nbsp;·&nbsp; adam.julius@nhs.net &nbsp;·&nbsp; outcome6.app</p>
+  <aside class="notes">Anticipate: ethics status (awaiting sponsorship/REC; single submission covering the whole study); information governance (zero retention, UK South, DPIA); conflict of interest (declared, managed by pre-registration and blinding); generalisability beyond anaesthesia; hallucination and accuracy (the draft is editable and educator-approved); medicolegal status of recordings (consent-gated, staff only, nothing retained).</aside>
+</section>
+
+<!-- 13 · References -->
+<section class="slide s-refs" data-title="References">
+  <div class="eyebrow" data-in="0">References</div>
+  <h2 class="h-title" data-in="0" style="--d:100ms">References</h2>
+  <ol class="refs" data-in="0" style="--d:200ms">
+    <li>Postgraduate Medical Education and Training Board. Developing and maintaining an assessment system: a PMETB guide to good practice. London: PMETB; 2007.</li>
+    <li>Miller GE. The assessment of clinical skills/competence/performance. Acad Med. 1990;65(9 Suppl):S63-7.</li>
+    <li>Norcini J, Burch V. Workplace-based assessment as an educational tool: AMEE Guide No. 31. Med Teach. 2007;29(9):855-71.</li>
+    <li>Prentice S, Benson J, Kirkpatrick E, Schuwirth L. Workplace-based assessments in postgraduate medical education: a hermeneutic review. Med Educ. 2020;54(11):981-92.</li>
+    <li>General Medical Council. Learning and assessment in the clinical environment: the way forward. London: GMC; 2011.</li>
+    <li>Cho SP, Parry D, Wade W. Lessons learnt from a pilot of assessment for learning. Clin Med (Lond). 2014;14(6):577-84. doi:10.7861/clinmedicine.14-6-577</li>
+    <li>Royal College of Anaesthetists. AI tools in training and recruitment [Internet]. London: RCoA [cited 2026 Sep 10]. Available from: https://www.rcoa.ac.uk/training-careers/training-hub/supervising-assessing/ai-tools-training-recruitment</li>
+    <li>Royal College of General Practitioners. Generative artificial intelligence in GP training and workplace based assessment [Internet]. London: RCGP [cited 2026 Sep 10]. Available from: https://www.rcgp.org.uk/mrcgp-exams/wpba/generative-artificial-intelligence</li>
+    <li>Royal College of Paediatrics and Child Health. Artificial intelligence in ePortfolio and assessments: guidance on responsible use [Internet]. London: RCPCH; 2025 [cited 2026 Sep 10]. Available from: https://www.rcpch.ac.uk/resources/artificial-intelligence-eportfolio-assessments-guidance-responsible-use</li>
+    <li>Faculty of Intensive Care Medicine. Generative AI guidance for ICM training and revalidation [Internet]. London: FICM; 2025 [cited 2026 Sep 10]. Available from: https://ficm.ac.uk/training/generative-ai-guidance-for-icm-training-and-revalidation</li>
+    <li>Blease C, Garcia Sanchez C, Gaab J, Alderman JE, et al. Generative artificial intelligence adoption and the future of the primary care profession: an online survey of UK general practitioners’ experiences and opinions [preprint]. Research Square. 2026 Jun 17. doi:10.21203/rs.3.rs-9979779/v1</li>
+  </ol>
+  <aside class="notes">Reference slide. Not presented.</aside>
+</section>
+
+<div id="phone" aria-hidden="true">
+  <video id="demo" src="assets/demo-phone.mp4" poster="assets/demo-phone-poster.jpg" muted loop playsinline preload="auto"></video>
+  <div class="chip" id="chip"></div>
+  <button id="playBtn" type="button">▶ Play demo</button>
+</div>
+<div id="pageno"><span id="num">1</span></div>
+</div>
+</div>
+
+<div id="notesOverlay"></div>
+<div id="help">→ / space next · ← back · F full screen · P presenter view · N notes</div>
+<div id="presenter">
+  <div class="top"><b id="pTitle"></b><span class="meta" id="pMeta"></span><span class="clock" id="pClock">0:00</span></div>
+  <div style="margin-bottom:18px"><button id="pPrev">← Back</button><button id="pNext">Next →</button><button id="pReset">Reset timer</button></div>
+  <div class="pn" id="pNotes"></div>
+  <div class="nextup" id="pNextUp"></div>
+</div>
+
+<script>
+(() => {
+  const DECK = 'feedbackr-aome';
+  const isPresenter = new URLSearchParams(location.search).has('presenter');
+  if (new URLSearchParams(location.search).has('static')) document.documentElement.classList.add('static');
+  const stage = document.getElementById('stage');
+  const slides = [...document.querySelectorAll('.slide')];
+  const phone = document.getElementById('phone');
+  const demo = document.getElementById('demo');
+  const chip = document.getElementById('chip');
+  const numEl = document.getElementById('num');
+  const pageno = document.getElementById('pageno');
+  const notesOverlay = document.getElementById('notesOverlay');
+  const chan = 'BroadcastChannel' in window ? new BroadcastChannel(DECK + '-deck') : null;
+
+  const stepsOf = s => Math.max(0, ...[...s.querySelectorAll('[data-in]')].map(e => +(e.dataset.in ?? 0)));
+  const counts = slides.map(stepsOf);
+  let cur = { i: 0, step: 0 }, navId = 0, presenterWin = null;
+
+  function fit() { const k = Math.min(innerWidth / 1920, innerHeight / 1080); stage.style.transform = `translate(-50%, -50%) scale(${k})`; }
+  addEventListener('resize', fit); fit();
+
+  /* step cards and phone chip follow the demo video */
+  const syncCards = [...document.querySelectorAll('.steps3 [data-t]')];
+  const chipMarks = [[0, 'Agree to record'], [3, 'Talk, with prompts'], [16.5, 'Check the draft'], [27, 'Curriculum links'], [42, 'Suggested reading'], [53, 'Transcript'], [57.5, 'Save the PDF']];
+  function syncCaptions() {
+    const t = demo.currentTime;
+    let idx = 0; syncCards.forEach((c, k) => { if (t >= +c.dataset.t) idx = k; });
+    syncCards.forEach((c, k) => c.classList.toggle('now', k === idx));
+    let label = chipMarks[0][1]; chipMarks.forEach(([s, l]) => { if (t >= s) label = l; });
+    chip.textContent = label;
+  }
+  demo.addEventListener('timeupdate', syncCaptions);
+  document.getElementById('playBtn').addEventListener('click', e => { e.stopPropagation(); demo.play().then(() => phone.classList.remove('blocked')).catch(() => {}); });
+
+  function runCounts(scope) {
+    scope.querySelectorAll('[data-count]').forEach(el => {
+      const host = el.closest('[data-in]');
+      if (host && !host.classList.contains('on')) return;
+      if (el.dataset.done === '1') return;
+      el.dataset.done = '1';
+      const end = +el.dataset.count, start = 0;
+      if (document.documentElement.classList.contains('static') || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = end.toLocaleString('en-GB'); return; }
+      const delay = parseFloat(getComputedStyle(host || el).getPropertyValue('--d')) || 0;
+      const dur = 1300, t0 = performance.now() + delay;
+      const fmt = v => Math.round(v).toLocaleString('en-GB');
+      el.textContent = fmt(start);
+      const tick = now => { const p = Math.min(1, Math.max(0, (now - t0) / dur)); el.textContent = fmt(start + (end - start) * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(tick); };
+      requestAnimationFrame(tick);
+    });
+  }
+  function resetCounts(scope) { scope.querySelectorAll('[data-count]').forEach(el => { el.dataset.done = '0'; }); }
+
+  function setStep(s, step) {
+    s.dataset.step = step;
+    for (let k = 1; k <= 8; k++) s.classList.toggle('st' + k, step >= k);
+    s.querySelectorAll('[data-in]').forEach(e => e.classList.toggle('on', step >= +e.dataset.in));
+    const bar = s.querySelector('.tlbar');
+    if (bar) bar.style.width = step < 0 ? '0' : Math.min(100, step / 4 * 100) + '%';
+    runCounts(s);
+  }
+
+  function updateChrome(s, step, dir) {
+    const prevPos = stage.dataset.phone;
+    const pos = s.dataset.phone || 'off';
+    stage.dataset.phone = pos;
+    const visible = !['off', 'exit'].includes(pos);
+    if (visible) {
+      if (['off', 'exit'].includes(prevPos) && dir >= 0) demo.currentTime = 0;
+      demo.play().then(() => phone.classList.remove('blocked')).catch(() => phone.classList.add('blocked'));
+    } else { setTimeout(() => { if (['off', 'exit'].includes(stage.dataset.phone)) demo.pause(); }, 1200); }
+    numEl.textContent = String(cur.i + 1);
+    pageno.style.visibility = (cur.i === 0) ? 'hidden' : 'visible';
+    if (notesOverlay.classList.contains('show')) notesOverlay.innerHTML = s.querySelector('.notes')?.innerHTML || '';
+  }
+
+  function go(i, step, dir) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    const changed = i !== cur.i || !slides[i].classList.contains('active');
+    stage.style.setProperty('--dir', dir < 0 ? -1 : 1);
+    if (changed) {
+      const old = slides[cur.i], nav = ++navId;
+      if (old && old !== slides[i]) {
+        old.classList.remove('active'); old.classList.add('leaving');
+        setTimeout(() => { old.classList.remove('leaving'); if (!old.classList.contains('active')) { setStep(old, -1); resetCounts(old); } }, 800);
+      }
+      const s = slides[i];
+      s.classList.remove('leaving'); setStep(s, -1); resetCounts(s); s.classList.add('active');
+      cur = { i, step };
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (nav === navId && cur.i === i) setStep(s, cur.step); }));
+    } else {
+      cur = { i, step };
+      if (!slides[i].dataset.step || +slides[i].dataset.step >= 0) setStep(slides[i], step);
+    }
+    updateChrome(slides[i], step, dir);
+    history.replaceState(null, '', `#${i + 1}.${step}`);
+    broadcast();
+  }
+  const next = () => cur.step < counts[cur.i] ? go(cur.i, cur.step + 1, 1) : (cur.i < slides.length - 1 && go(cur.i + 1, 0, 1));
+  const prev = () => cur.step > 0 ? go(cur.i, cur.step - 1, -1) : (cur.i > 0 && go(cur.i - 1, counts[cur.i - 1], -1));
+
+  function broadcast() {
+    if (isPresenter) return;
+    const msg = { type: 'state', i: cur.i, step: cur.step, deck: DECK };
+    if (chan) chan.postMessage(msg);
+    if (presenterWin && !presenterWin.closed) presenterWin.postMessage(msg, '*');
+  }
+
+  if (isPresenter) {
+    document.body.classList.add('presenter');
+    const t0 = { v: Date.now() };
+    const pTitle = document.getElementById('pTitle'), pMeta = document.getElementById('pMeta'), pNotes = document.getElementById('pNotes'), pNext = document.getElementById('pNextUp'), pClock = document.getElementById('pClock');
+    const show = (i, step) => {
+      const s = slides[i];
+      pTitle.textContent = `${i + 1}. ${s.dataset.title}`;
+      pMeta.textContent = `Build ${step} of ${counts[i]} · slide ${i + 1} of ${slides.length}`;
+      pNotes.innerHTML = s.querySelector('.notes')?.innerHTML || '';
+      pNext.textContent = step < counts[i] ? 'Next: another build on this slide' : (slides[i + 1] ? `Next slide: ${slides[i + 1].dataset.title}` : 'End of deck');
+    };
+    show(0, 0);
+    const onState = d => { if (d && d.type === 'state') show(d.i, d.step); };
+    chan && chan.addEventListener('message', e => onState(e.data));
+    addEventListener('message', e => { if (e.data && e.data.deck === DECK) onState(e.data); });
+    const send = cmd => { const msg = { type: 'cmd', cmd, deck: DECK }; if (chan) chan.postMessage(msg); if (window.opener && !window.opener.closed) window.opener.postMessage(msg, '*'); };
+    document.getElementById('pPrev').onclick = () => send('prev');
+    document.getElementById('pNext').onclick = () => send('next');
+    document.getElementById('pReset').onclick = () => { t0.v = Date.now(); };
+    addEventListener('keydown', e => {
+      if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); send('next'); }
+      if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); send('prev'); }
+    });
+    setInterval(() => { const s = Math.floor((Date.now() - t0.v) / 1000); pClock.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }, 500);
+    send('hello');
+    return;
+  }
+
+  let lastCmd = 0;
+  const onCmd = d => {
+    if (!d || d.type !== 'cmd') return;
+    const now = performance.now();
+    if (d.cmd !== 'hello' && now - lastCmd < 60) return;
+    if (d.cmd !== 'hello') lastCmd = now;
+    if (d.cmd === 'next') next();
+    if (d.cmd === 'prev') prev();
+    if (d.cmd === 'hello') broadcast();
+  };
+  chan && chan.addEventListener('message', e => onCmd(e.data));
+  addEventListener('message', e => { if (e.data && e.data.deck === DECK) onCmd(e.data); });
+
+  addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); next(); }
+    else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') go(0, 0, -1);
+    else if (e.key === 'End') go(slides.length - 1, counts[slides.length - 1], 1);
+    else if (e.key === 'f' || e.key === 'F') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); }
+    else if (e.key === 'n' || e.key === 'N') { notesOverlay.classList.toggle('show'); notesOverlay.innerHTML = slides[cur.i].querySelector('.notes')?.innerHTML || ''; }
+    else if (e.key === 'p' || e.key === 'P') { presenterWin = window.open(location.pathname + '?presenter', DECK + '-presenter', 'width=1200,height=800'); setTimeout(broadcast, 800); }
+  });
+  stage.addEventListener('click', e => { if (!e.target.closest('a')) next(); });
+
+  const help = document.getElementById('help');
+  if (!document.documentElement.classList.contains('static')) help.classList.add('show'); setTimeout(() => help.classList.remove('show'), 3500);
+
+  const route = () => {
+    const m = location.hash.match(/^#(\d+)(?:\.(\d+))?/);
+    const i = m ? Math.min(slides.length, Math.max(1, +m[1])) - 1 : 0;
+    const step = m ? Math.min(+(m[2] || 0), counts[i]) : 0;
+    return [i, step];
+  };
+  const start = route();
+  cur = { i: start[0], step: start[1] };
+  syncCaptions();
+  go(start[0], start[1], 1);
+  addEventListener('hashchange', () => { const [i, step] = route(); if (i !== cur.i || step !== cur.step) go(i, step, i >= cur.i ? 1 : -1); });
+})();
+</script>
+</body>
+</html>
